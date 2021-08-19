@@ -1,9 +1,12 @@
 using Random
 using Zygote: @adjoint
 using Zygote
+using ForwardDiff
 using DSP
 
 Random.seed!(1)
+
+Float64(x::ForwardDiff.Dual)=ForwardDiff.value(x)
 
 function dconv(x, a, b)
     n = length(size(a))
@@ -21,9 +24,9 @@ function dconv(x, a, b)
     return r
 end
 # @adjoint DSP.conv(a, b) = DSP.conv(a, b), x -> dconv(x, a, b)
-@adjoint DSP.conv(a, b) = DSP.conv(float.(a), float.(b)),
+@adjoint DSP.conv(a, b) = DSP.conv(Float64.(a), Float64.(b)),
 x ->
-    dconv(float.(x), float.(a), float.(b))
+    dconv(Float64.(x), Float64.(a), Float64.(b))
 # function frule(
 #     (_, ΔA, ΔB),
 #     ::typeof(DPS.conv),
@@ -285,7 +288,7 @@ function toArray(x::Vector)
     # cat([reshape(x,(size(x)...,1)) for x in x]...;dims=4)
 end
 
-using GLMakie
+# using GLMakie
 # using CairoMakie
 
 function tfplot(X)

@@ -1,9 +1,6 @@
-using Flux
-using Random
+include("../src/nn.jl")
 using Test
-
 Random.seed!(1)
-include("../src/EquivariantNeuralOperators.jl")
 
 
 
@@ -15,42 +12,47 @@ charge distribution -> potential (Poisson's eqn), electric field (Gauss's law)
 inranks = [0]
 # output scalar field, vector field
 outranks = [0, 1]
-sz=(3,3,3)
-ctr=(2,2,2)
+sz=(8,8,8)
 dx = 0.1
-# max convolution radius
-rmax = dx
+dV=dx^3
+rmax = 2dx
+lmax = 1
 
 # charge distribution
-X = [zeros(sz...)]
-X[1][ctr...] = 1.0
+x = [zeros(sz...)]
+ix=[5, 5, 5]
+x[1][ix...] = 1.0
+X=[x]
 
 # generate data
 # Green's fn for Poisson, Gauss
 f1 = LinearOperator(:potential,dx;rmax=rmax)
 f2 = LinearOperator(:field,dx;rmax=rmax)
 
-Y1 = f1(X)
-Y2 = f2(X)
+y1 = f1(X[1])
+y2 = f2(X[1])
 
 # check
-ix = ctr.+[1,1,0]
-@show Y1[1][ix...]
-@show [Y2[i][ix...] for i = 1:3]
+v=[1,1,1]
+ix = ix.+v
+r=norm(v)*dx
+@test y1[1][ix...]≈dV/r
+@test [y2[i][ix...] for i = 1:3]≈dV/r^2*ones(3)/sqrt(3)
 
+##
 # train
 # linear layer: tensor field convolution
 L = EquivConv(inranks, outranks, dx; rmax = rmax)
-##
+
 function nn(X)
     L(X)
 end
 
 
 function loss()
-    Y1hat, Y2hat = nn([X])
-    l1 = Flux.mae(toArray(Y1), toArray(Y1hat))
-    l2 = Flux.mae(toArray(Y2), toArray(Y2hat))
+    y1hat, y2hat = nn(X)
+    l1 = Flux.mae(toArray(y1), toArray(y1hat))
+    l2 = Flux.mae(toArray(y2), toArray(y2hat))
     l = l1 + l2
     println(l)
     l
@@ -73,7 +75,7 @@ n=4
 inranks=[0,0]
 outranks=[0]
 X=[[rand(n,n,n)],[rand(n,n,n)]]
-Y=[[X[1][1].*X[2][1]]]
+y=[[X[1][1].*X[2][1]]]
 
 # train
 # linear layer: tensor field convolution
@@ -86,8 +88,8 @@ end
 
 
 function loss()
-    Yhat = nn(X)
-    l = Flux.mae(toArray(Y[1]), toArray(Yhat[1]))
+    yhat = nn(X)
+    l = Flux.mae(toArray(y[1]), toArray(yhat[1]))
     println(l)
     l
 end
